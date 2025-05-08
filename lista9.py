@@ -12,10 +12,10 @@ class Puzzle8(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("Lista 9 - Puzzle")
-        self.geometry("400x550")
+        self.geometry("400x600")
 
         self.grid_values = []
-        self.state = []
+        self.board_state = []
         self.algorithm = ctk.StringVar(value="BFS")
         self.seed = ctk.StringVar()
         self.mode = ctk.StringVar(value="Números")
@@ -40,6 +40,12 @@ class Puzzle8(ctk.CTk):
         ctk.CTkButton(self, text="Embaralhar", command=self.shuffle_board).pack(pady=10)
         ctk.CTkButton(self, text="Resolver", command=self.solve_puzzle).pack(pady=10)
 
+        self.label_tempo = ctk.CTkLabel(self, text="Tempo: 0.0s")
+        self.label_tempo.pack()
+
+        self.label_passos = ctk.CTkLabel(self, text="Passos: 0")
+        self.label_passos.pack()
+
         frame = ctk.CTkFrame(self)
         frame.pack(pady=10)
         for i in range(3):
@@ -50,7 +56,13 @@ class Puzzle8(ctk.CTk):
                 row.append(btn)
             self.grid_values.append(row)
 
-        self.prepare_image_tiles("./billgates.jpeg")
+        import os
+        import sys
+        if hasattr(sys, '_MEIPASS'):
+            img_path = os.path.join(sys._MEIPASS, "billgates.jpeg")
+        else:
+            img_path = os.path.join(os.path.dirname(__file__), "billgates.jpeg")
+        self.prepare_image_tiles(img_path)
         self.reset_board()
 
     def prepare_image_tiles(self, path):
@@ -62,11 +74,12 @@ class Puzzle8(ctk.CTk):
                     box = (j*80, i*80, (j+1)*80, (i+1)*80)
                     tile = ImageTk.PhotoImage(img.crop(box))
                     self.image_tiles.append(tile)
-        except:
+        except Exception as e:
+            print(f"[ERRO] Falha ao carregar a imagem: {e}")
             self.image_tiles = [None] * 9
 
     def reset_board(self):
-        self.state = list(range(1, 9)) + [0]
+        self.board_state = list(range(1, 9)) + [0]
         self.update_board()
 
     def shuffle_board(self):
@@ -75,17 +88,19 @@ class Puzzle8(ctk.CTk):
         else:
             random.seed()
         while True:
-            shuffled = self.state[:]
+            shuffled = self.board_state[:]
             random.shuffle(shuffled)
             if self.is_solvable(shuffled):
-                self.state = shuffled
+                self.board_state = shuffled
                 break
         self.update_board()
+        self.label_tempo.configure(text="Tempo: 0.0s")
+        self.label_passos.configure(text="Passos: 0")
 
     def update_board(self):
         for i in range(3):
             for j in range(3):
-                val = self.state[i * 3 + j]
+                val = self.board_state[i * 3 + j]
                 btn = self.grid_values[i][j]
                 if self.mode.get() == "Números":
                     text = str(val) if val != 0 else ""
@@ -97,7 +112,7 @@ class Puzzle8(ctk.CTk):
 
     def solve_puzzle(self):
         algo = self.algorithm.get()
-        start = tuple(self.state)
+        start = tuple(self.board_state)
         goal = tuple(range(1, 9)) + (0,)
 
         start_time = time.time()
@@ -114,11 +129,11 @@ class Puzzle8(ctk.CTk):
             return
 
         end_time = time.time()
+        duracao = end_time - start_time
+        passos = len(path) - 1 if path else 0
 
-        print(f"Algoritmo: {algo}")
-        print(f"Tempo: {end_time - start_time:.4f}s")
-        print(f"Nós visitados: {visited}")
-        print(f"Passos até solução: {len(path) if path else 'Não encontrado'}")
+        self.label_tempo.configure(text=f"Tempo: {duracao:.4f}s")
+        self.label_passos.configure(text=f"Passos: 0")  # Começa do zero e atualiza na animação
 
         if path:
             self.solution_path = path[1:]
@@ -127,9 +142,10 @@ class Puzzle8(ctk.CTk):
 
     def animate_solution(self):
         if self.solution_index < len(self.solution_path):
-            self.state = list(self.solution_path[self.solution_index])
+            self.board_state = list(self.solution_path[self.solution_index])
             self.update_board()
             self.solution_index += 1
+            self.label_passos.configure(text=f"Passos: {self.solution_index}")
             self.after(300, self.animate_solution)
 
     def is_solvable(self, state):
@@ -213,7 +229,6 @@ class Puzzle8(ctk.CTk):
             x2, y2 = divmod(goal_idx, 3)
             dist += abs(x1 - x2) + abs(y1 - y2)
         return dist
-
 
 if __name__ == '__main__':
     app = Puzzle8()
